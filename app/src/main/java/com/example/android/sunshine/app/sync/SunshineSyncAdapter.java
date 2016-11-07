@@ -39,6 +39,9 @@ import com.example.android.sunshine.app.muzei.WeatherMuzeiSource;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.wearable.Asset;
+import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
@@ -49,6 +52,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -65,6 +69,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     private static final String KEY_HIGH = "high_temperature";
     private static final String KEY_LOW = "low_temperature";
     private static final String WEATHER_ID = "weather_id";
+    private static final String WEATHER_ICON = "weather_icon";
     public final String LOG_TAG = SunshineSyncAdapter.class.getSimpleName();
     public static final String ACTION_DATA_UPDATED =
             "com.example.android.sunshine.app.ACTION_DATA_UPDATED";
@@ -421,10 +426,21 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
         dataMap.putString(KEY_HIGH, Utility.formatTemperature(cntx, cursor.getDouble(INDEX_MAX_TEMP)));
         dataMap.putString(KEY_LOW, Utility.formatTemperature(cntx, cursor.getDouble(INDEX_MIN_TEMP)));
         dataMap.putInt(WEATHER_ID, cursor.getInt(INDEX_WEATHER_ID));
+        Bitmap bitmap = BitmapFactory.decodeResource(cntx.getResources(),
+                Utility.getIconResourceForWeatherCondition(cursor.getInt(INDEX_WEATHER_ID)));
+        Asset asset = createAssetFromBitmap(bitmap);
+        dataMap.putAsset(WEATHER_ICON, asset);
         PutDataRequest putDataRequest = mapRequest.asPutDataRequest();
-        Wearable.DataApi.putDataItem(googleApiClient, putDataRequest);
+        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi
+                .putDataItem(googleApiClient, putDataRequest);
 
         Log.d("WATCH_DATA", "Data sent");
+    }
+
+    private static Asset createAssetFromBitmap(Bitmap bitmap) {
+        final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
+        return Asset.createFromBytes(byteStream.toByteArray());
     }
 
     private void notifyWeather() {
